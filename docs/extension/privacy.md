@@ -1,6 +1,6 @@
 # CC JSONL Monitor 개인정보 처리 안내
 
-적용 버전: 0.3.0
+적용 버전: 0.4.0
 
 CC JSONL Monitor는 사용자가 선택한 Claude Code JSONL 기록을 같은 컴퓨터의 Chrome 안에서 조회하는 도구입니다.
 

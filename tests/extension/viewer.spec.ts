@@ -181,3 +181,51 @@ test('new record patterns are readable, searchable, masked, and responsive in th
   await expect(page.locator('.event-header strong')).toHaveText(['훅 처리 결과']);
   expect(errors).toEqual([]); expect(network).toEqual([]);
 });
+
+test('extension keeps filters and conversation mode across file picker connections', async () => {
+  await page.getByRole('button', { name: '초기화', exact: true }).click();
+  await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    const handles = [];
+    for (const name of ['chat-first.jsonl', 'chat-second.jsonl']) {
+      const records = [
+        { type: 'user', sessionId: 'chat-demo', timestamp: '2026-09-15T01:00:00Z', content: '로그인한 뒤 원래 화면으로 돌아가는지 확인해 주세요.' },
+        { type: 'assistant', sessionId: 'chat-demo', timestamp: '2026-09-15T01:00:01Z', message: { content: [{ type: 'tool_use', id: 'read-chat', name: 'Read', input: { file_path: 'src/auth.ts' } }] } },
+        { type: 'user', sessionId: 'chat-demo', timestamp: '2026-09-15T01:00:02Z', message: { content: [{ type: 'tool_result', tool_use_id: 'read-chat', content: '복귀 경로가 설정되어 있습니다.' }] } },
+        { type: 'assistant', sessionId: 'chat-demo', timestamp: '2026-09-15T01:00:03Z', content: '확인했습니다. 로그인 후 원래 화면으로 돌아갑니다.' },
+      ];
+      const handle = await root.getFileHandle(name, { create: true });
+      const writer = await handle.createWritable(); await writer.write(records.map(record => JSON.stringify(record)).join('\n')); await writer.close();
+      handles.push(handle);
+    }
+    let index = 0;
+    Object.assign(window, { showOpenFilePicker: async () => [handles[index++]] });
+  });
+  await page.getByRole('button', { name: '파일 열기', exact: true }).click();
+  await expect(page.locator('.event-card')).toHaveCount(4);
+  await expect(page.locator('.activity-group .event-tool_use')).not.toBeVisible();
+  await page.getByLabel('화면 테마').selectOption('dark');
+  await page.screenshot({ path: '.local/screenshots/conversation-dark.png' });
+  await page.getByLabel('화면 테마').selectOption('light');
+  await page.screenshot({ path: '.local/screenshots/conversation-light.png' });
+  await page.locator('.activity-group > summary').click();
+  await expect(page.locator('.event-tool_use')).toBeVisible();
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  await page.screenshot({ path: '.local/screenshots/conversation-mobile.png', fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const titles = page.getByRole('group', { name: /기록 제목/ });
+  await titles.getByRole('button', { name: '선택 해제', exact: true }).click();
+  await titles.getByRole('button', { name: /^Claude/ }).click();
+  await page.getByLabel('선택한 파일에서 검색').fill('확인했습니다');
+  await expect(page.locator('.event-header strong')).toHaveText(['Claude']);
+  await page.getByRole('button', { name: '파일 열기', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'chat-second.jsonl', exact: true })).toBeVisible();
+  await expect(page.locator('.event-header strong')).toHaveText(['Claude']);
+  await expect(page.getByLabel('선택한 파일에서 검색')).toHaveValue('확인했습니다');
+  await expect(titles.getByRole('button', { name: /^사용자 요청/ })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('button', { name: '대화형', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  expect(errors).toEqual([]); expect(network).toEqual([]);
+});

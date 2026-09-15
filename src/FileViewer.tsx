@@ -1,3 +1,5 @@
+import { bindPreference, type ViewerPreferences } from './viewer-preferences';
+import type { Dispatch, SetStateAction } from 'react';
 import { EVENT_LABELS } from '../shared/event-labels';
 import type { EventKind } from '../shared/types';
 import { useEffect, useRef, useState } from 'react';
@@ -5,29 +7,31 @@ import { AlertCircle, ArrowDownUp, ChevronLeft, ChevronRight, FileJson2, Refresh
 import type { FileView, Source } from '../shared/types';
 import { api, endpoint, messageOf } from './api';
 import { formatBytes, formatTime } from './format';
+import ConversationView from './ConversationView';
 import EventCard from './EventCard';
 
-interface Props { source: Source; path: string; name: string; }
+interface Props { source: Source; path: string; name: string; preferences: ViewerPreferences; setPreferences: Dispatch<SetStateAction<ViewerPreferences>>; }
 
-export default function FileViewer({ source, path, name }: Props) {
+export default function FileViewer({ source, path, name, preferences, setPreferences }: Props) {
   const [data, setData] = useState<FileView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [titles, setTitles] = useState<EventKind[]>(Object.keys(EVENT_LABELS) as EventKind[]);
-  const [kind, setKind] = useState('all');
-  const [session, setSession] = useState('');
-  const [order, setOrder] = useState('asc');
-  const [timezone, setTimezone] = useState('local');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [query, setQuery] = bindPreference('query', preferences, setPreferences);
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+  const [titles, setTitles] = bindPreference('titles', preferences, setPreferences);
+  const [kind, setKind] = bindPreference('kind', preferences, setPreferences);
+  const [session, setSession] = bindPreference('session', preferences, setPreferences);
+  const [order, setOrder] = bindPreference('order', preferences, setPreferences);
+  const [timezone, setTimezone] = bindPreference('timezone', preferences, setPreferences);
+  const [from, setFrom] = bindPreference('from', preferences, setPreferences);
+  const [to, setTo] = bindPreference('to', preferences, setPreferences);
   const [offset, setOffset] = useState(0);
   const [reload, setReload] = useState(0);
-  const [watching, setWatching] = useState(true);
+  const [watching, setWatching] = bindPreference('watching', preferences, setPreferences);
   const [change, setChange] = useState('');
   const [watchError, setWatchError] = useState('');
-  const [masked, setMasked] = useState(true);
+  const [masked, setMasked] = bindPreference('masked', preferences, setPreferences);
+  const [view, setView] = bindPreference('view', preferences, setPreferences);
   const scrollRef = useRef<HTMLDivElement>(null);
   const invalidDates = Boolean(from && to && from > to);
   const pageSize = 100;
@@ -38,7 +42,7 @@ export default function FileViewer({ source, path, name }: Props) {
   }, [query]);
 
   useEffect(() => {
-    if (invalidDates) return;
+    if (invalidDates) { setLoading(false); return; }
     const controller = new AbortController();
     setLoading(true); setError('');
     api<FileView>(endpoint('file', { source: source.id, path, q: debouncedQuery, titles: titles.join(','), kind, session, order, timezone, from, to, offset, limit: pageSize, refresh: reload }), { signal: controller.signal })
@@ -98,20 +102,20 @@ export default function FileViewer({ source, path, name }: Props) {
       <fieldset className="title-filters"><legend>기록 제목 <span className="filter-hint">여러 개 선택 가능</span></legend><button type="button" className="title-filter" aria-pressed={titles.length === Object.keys(EVENT_LABELS).length} onClick={() => { setTitles(Object.keys(EVENT_LABELS) as EventKind[]); setOffset(0); }}>전체</button><button type="button" className="title-filter" onClick={() => { setTitles([]); setOffset(0); }}>선택 해제</button>{(Object.keys(EVENT_LABELS) as EventKind[]).map(title => <button type="button" key={title} className="title-filter" aria-pressed={titles.includes(title)} onClick={() => { setTitles(old => old.includes(title) ? old.filter(value => value !== title) : [...old, title]); setOffset(0); }}>{EVENT_LABELS[title]}<span>{data?.counts[title] ?? 0}</span></button>)}</fieldset>
       <div className="secondary-filters"><div className="date-range"><label>시작일<input type="date" value={from} onChange={(event) => { setFrom(event.target.value); setOffset(0); }} /></label><span aria-hidden="true">–</span><label>종료일<input type="date" value={to} onChange={(event) => { setTo(event.target.value); setOffset(0); }} /></label></div>
         <select className="timezone-select" aria-label="표시 시간대" value={timezone} onChange={(event) => { setTimezone(event.target.value); setOffset(0); }}><option value="local">내 시간대</option><option value="utc">UTC</option></select>
-        {data && data.sessionIds.length > 1 && <select className="session-select" aria-label="세션 필터" value={session} onChange={(event) => { setSession(event.target.value); setOffset(0); }}><option value="">모든 세션</option>{data.sessionIds.map((id) => <option key={id} value={id}>{id}</option>)}</select>}
+        {data && (data.sessionIds.length > 1 || session) && <select className="session-select" aria-label="세션 필터" value={session} onChange={(event) => { setSession(event.target.value); setOffset(0); }}><option value="">모든 세션</option>{session && !data.sessionIds.includes(session) && <option value={session}>{session} · 이 파일에 없음</option>}{data.sessionIds.map((id) => <option key={id} value={id}>{id}</option>)}</select>}
         {hasFilters && <button className="text-button reset-filters" type="button" onClick={resetFilters}><X size={13} />초기화</button>}
       </div>
       {invalidDates && <p className="error-text" role="alert">시작일은 종료일보다 늦을 수 없습니다.</p>}
     </div>
 
-    <div className="timeline-control"><span className="result-count" role="status">{loading ? '기록 읽는 중…' : data ? `${data.matchedEvents.toLocaleString()}개 일치 · ${timeLabel}` : '파일 읽기'}</span><div className="view-options"><label title="인식 가능한 키와 토큰을 가립니다. 완전한 탐지를 보장하지 않습니다."><input type="checkbox" checked={masked} onChange={(event) => setMasked(event.target.checked)} /><ShieldCheck size={14} />민감 값 가리기</label><label><input type="checkbox" checked={watching} onChange={(event) => setWatching(event.target.checked)} />변경 확인</label></div></div>
+    <div className="timeline-control"><span className="result-count" role="status">{loading ? '기록 읽는 중…' : data ? `${data.matchedEvents.toLocaleString()}개 일치 · ${timeLabel}` : '파일 읽기'}</span><div className="view-options"><div className="view-switch" role="group" aria-label="기록 보기 방식"><button type="button" aria-pressed={view === 'conversation'} onClick={() => setView('conversation')}>대화형</button><button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>목록형</button></div><label title="인식 가능한 키와 토큰을 가립니다. 완전한 탐지를 보장하지 않습니다."><input type="checkbox" checked={masked} onChange={(event) => setMasked(event.target.checked)} /><ShieldCheck size={14} />민감 값 가리기</label><label><input type="checkbox" checked={watching} onChange={(event) => setWatching(event.target.checked)} />변경 확인</label></div></div>
     {change && <div className="update-banner" role="status"><span>{change === 'deleted' ? '원본 파일이 없어졌습니다. 현재 화면은 마지막으로 읽은 기록입니다.' : '파일에 새 기록이 추가되거나 내용이 변경되었습니다.'}</span><button type="button" onClick={refresh} disabled={loading}>다시 읽기</button></div>}
     {watchError && <div className="notice warning" role="status">변경 확인을 잠시 수행하지 못했습니다. {watchError}</div>}
 
     <div className="timeline-scroll" ref={scrollRef} aria-busy={loading}>
-      {error ? <div className="content-error" role="alert"><AlertCircle size={30} /><h2>파일을 읽지 못했습니다</h2><p>{error}</p><button className="secondary-button" type="button" onClick={refresh}>다시 시도</button></div> : !data ? <div className="loading-state" role="status"><div className="skeleton-line" /><div className="skeleton-line short" /><p>JSONL 기록을 읽고 있습니다.</p></div> : <>
+      {error ? <div className="content-error" role="alert"><AlertCircle size={30} /><h2>파일을 읽지 못했습니다</h2><p>{error}</p><button className="secondary-button" type="button" onClick={refresh}>다시 시도</button></div> : !data ? <div className="loading-state" role="status">{!invalidDates && <><div className="skeleton-line" /><div className="skeleton-line short" /></>}<p>{invalidDates ? '기간을 수정하면 기록을 표시합니다.' : 'JSONL 기록을 읽고 있습니다.'}</p></div> : <>
         {(data.diagnostics.length > 0 || data.pendingTail || data.truncated) && <details className="diagnostics"><summary><AlertCircle size={15} />읽기 상태 확인{data.diagnostics.length > 0 ? ` · 진단 ${data.diagnostics.length}개` : ''}{data.pendingTail ? ' · 마지막 줄 대기' : ''}</summary><div>{data.pendingTail && <p>마지막 줄이 아직 완성되지 않았습니다. 파일 변경 후 다시 읽으면 이어진 기록을 확인할 수 있습니다.</p>}{data.truncated && <p>처리 한도 때문에 일부 기록만 표시되었습니다.</p>}<ul>{data.diagnostics.map((diagnostic, index) => <li key={`${diagnostic.line}-${index}`}>{diagnostic.line > 0 ? `${diagnostic.line}번째 줄 · ` : ''}{diagnostic.message}</li>)}</ul></div></details>}
-        {data.events.length === 0 ? <div className="content-empty"><Search size={32} strokeWidth={1.3} /><h2>{data.totalEvents ? '조건에 맞는 기록이 없습니다' : '표시할 기록이 없습니다'}</h2><p>{data.totalEvents ? '검색어나 날짜, 이벤트 종류를 바꿔보세요.' : '비어 있거나 지원 가능한 기록이 없는 파일입니다. 진단이 있다면 함께 확인하세요.'}</p>{hasFilters && <button className="secondary-button" type="button" onClick={resetFilters}>검색·필터 초기화</button>}</div> : <div className="events-list">{data.events.map((event) => <EventCard key={`${data.revision}:${event.id}`} event={event} timezone={timezone} masked={masked} />)}</div>}
+        {data.events.length === 0 ? <div className="content-empty"><Search size={32} strokeWidth={1.3} /><h2>{data.totalEvents ? '조건에 맞는 기록이 없습니다' : '표시할 기록이 없습니다'}</h2><p>{data.totalEvents ? '파일을 바꿔도 검색·필터는 유지됩니다. 조건을 바꾸거나 초기화해 보세요.' : '비어 있거나 지원 가능한 기록이 없는 파일입니다. 진단이 있다면 함께 확인하세요.'}</p>{hasFilters && <button className="secondary-button" type="button" onClick={resetFilters}>검색·필터 초기화</button>}</div> : view === 'conversation' ? <ConversationView key={data.revision} events={data.events} timezone={timezone} masked={masked} filtered={hasFilters} /> : <div className="events-list">{data.events.map((event) => <EventCard key={`${data.revision}:${event.id}`} event={event} timezone={timezone} masked={masked} />)}</div>}
       </>}
     </div>
     {data && <footer className="pagination"><span>{data.matchedEvents ? `${offset + 1}–${Math.min(offset + data.events.length, data.matchedEvents)} / ${data.matchedEvents.toLocaleString()}` : '0개 기록'}<span className="pagination-note"> · 페이지당 {pageSize}개</span></span><div><button type="button" className="icon-button" aria-label="이전 페이지" disabled={offset === 0 || loading} onClick={() => page(Math.max(0, offset - pageSize))}><ChevronLeft size={18} /></button><span>{Math.floor(offset / pageSize) + 1} / {Math.max(1, Math.ceil(data.matchedEvents / pageSize))}</span><button type="button" className="icon-button" aria-label="다음 페이지" disabled={offset + pageSize >= data.matchedEvents || loading} onClick={() => page(offset + pageSize)}><ChevronRight size={18} /></button></div></footer>}
