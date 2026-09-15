@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $releaseDir = Join-Path $projectRoot 'dist\release'
 $zipPath = Join-Path $releaseDir 'cc-jsonl-monitor-extension.zip'
