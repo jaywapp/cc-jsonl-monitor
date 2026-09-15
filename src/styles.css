@@ -317,3 +317,33 @@ code, pre { font-family: Consolas, "SFMono-Regular", monospace; }
 .event-detail dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow-y: auto; }
 .record-location { font-size: 11px; }
 @media (max-width: 600px) { .event-detail { grid-template-columns: minmax(0, 1fr); gap: 3px; } }
+
+.view-switch { display: inline-flex; border: 1px solid var(--input-line); border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+.view-switch button { border: 0; padding: 3px 9px; background: var(--surface); color: var(--muted); font-size: 11px; }
+.view-switch button[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
+.view-switch button:hover { color: var(--ink); }
+.conversation-list { padding-top: 16px; padding-bottom: 36px; }
+.conversation-divider { display: flex; align-items: center; gap: 14px; margin: 10px 0 16px; color: var(--muted); font-size: 11px; }
+.conversation-divider::before, .conversation-divider::after { content: ''; height: 1px; background: var(--line); flex: 1; }
+.conversation-session { margin: 0 0 16px; font-size: 10px; color: var(--muted); overflow-wrap: anywhere; }
+.conversation-list > .event-card { width: min(88%, 780px); padding: 0; border: 0; margin-bottom: 22px; align-items: flex-start; }
+.conversation-list > .event-card > .event-content { background: var(--surface-alt); border-radius: 12px; padding: 14px 18px; }
+.conversation-list > .event-user { margin-left: auto; flex-direction: row-reverse; }
+.conversation-list > .event-user > .event-content { background: var(--accent-soft); }
+.conversation-list > .event-card .event-header time { white-space: normal; }
+.conversation-list > .event-card .event-bottom { opacity: .9; }
+.activity-group { margin: 0 0 22px 41px; border-block: 1px solid var(--line); }
+.activity-group > summary { cursor: pointer; padding: 11px 0; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.activity-group > summary > svg { vertical-align: middle; margin: 0 7px; }
+.activity-group > summary strong { color: var(--ink); font-weight: 500; }
+.activity-kinds { margin-left: 10px; font-size: 11px; }
+.activity-group > summary .error-label { margin-left: 8px; }
+.activity-group > summary:hover { color: var(--accent); }
+.activity-content > .event-card:last-child { border-bottom: 0; }
+@media (max-width: 900px) { .timeline-control { flex-wrap: wrap; } .view-options { flex-wrap: wrap; } }
+@media (max-width: 600px) {
+  .conversation-list > .event-card { width: 96%; gap: 7px; }
+  .conversation-list > .event-card > .event-content { padding: 11px 12px; }
+  .activity-group { margin-left: 0; }
+  .activity-kinds { display: block; margin: 3px 0 0 20px; }
+}

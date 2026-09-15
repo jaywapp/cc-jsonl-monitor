@@ -66,3 +66,5 @@ npm run test:extension
 Actions의 **Release Chrome extension → Run workflow**에서 기본 브랜치를 선택하면 수동으로도 실행할 수 있습니다. 별도 PAT나 시크릿 등록은 필요 없으며, GitHub가 제공하는 토큰의 쓰기 권한은 게시 작업에만 부여합니다. 이 설정은 GitHub Releases 게시용이며 Chrome 웹 스토어에 제출하지 않습니다.
 
 [최신 릴리즈 ZIP 다운로드](https://github.com/jaywapp/cc-jsonl-monitor/releases/latest/download/cc-jsonl-monitor-extension.zip). 비공개 저장소의 릴리즈를 다운로드하려면 저장소 접근 권한이 필요합니다.
+
+수동 ZIP 설치와 자동 업데이트의 차이는 [업데이트 안내](updates.md)를 참고하세요.
