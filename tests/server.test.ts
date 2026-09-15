@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createServer, request as httpRequest } from 'node:http';
-import { mkdtemp, mkdir, writeFile, appendFile, rm, symlink } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, appendFile, rm, symlink, utimes } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
@@ -136,6 +136,9 @@ test('revision invalidates on append, same-length rewrite, truncation, deletion 
   const first = await service.file(source.id, '', new URLSearchParams());
   assert.equal((await service.raw(source.id, '', 1, first.revision)).raw, record('original'));
   await writeFile(file, record('rewrites'));
+  // Make the metadata change deterministic on coarse-clock Windows runners.
+  const rewrittenAt = new Date(Date.parse(first.modifiedAt) + 2000);
+  await utimes(file, rewrittenAt, rewrittenAt);
   const second = await service.file(source.id, '', new URLSearchParams());
   assert.notEqual(second.revision, first.revision);
   assert.equal(second.events[0].text, 'rewrites');

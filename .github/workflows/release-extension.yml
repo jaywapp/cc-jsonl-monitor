@@ -1,0 +1,101 @@
+name: Release Chrome extension
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: extension-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.event_name == 'pull_request' || (github.ref_type == 'branch' && github.ref_name == github.event.repository.default_branch)
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run package:extension
+      - run: npx playwright install chromium
+      - run: npm run test:extension
+      - name: Verify package and prepare release notes
+        shell: powershell
+        run: ./scripts/prepare-release.ps1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: chrome-extension
+          path: |
+            dist/release/cc-jsonl-monitor-extension.zip
+            dist/release/cc-jsonl-monitor-extension.zip.sha256
+            dist/release/release.json
+            dist/release/release-notes.md
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref_type == 'branch' && github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: chrome-extension
+          path: release
+      - name: Publish ZIP to GitHub Releases
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          tag="build-${GITHUB_SHA}"
+          version="$(jq -er .version release/release.json)"
+          title="CC JSONL Monitor ${version} (${GITHUB_SHA:0:7})"
+          assets=(release/cc-jsonl-monitor-extension.zip release/cc-jsonl-monitor-extension.zip.sha256)
+
+          # List first so authentication/network failures cannot look like a missing release.
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/releases" > releases.json
+          existing="$(jq -r --arg tag "$tag" '.[] | select(.tag_name == $tag) | .id' releases.json)"
+          if [[ -z "$existing" ]]; then
+            gh release create "$tag" "${assets[@]}" --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" --title "$title" --notes-file release/release-notes.md --draft
+          else
+            gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft,targetCommitish > existing.json
+            if [[ "$(jq -r .isDraft existing.json)" == true ]]; then
+              [[ "$(jq -r .targetCommitish existing.json)" == "$GITHUB_SHA" ]] || { echo 'Draft targets another commit.' >&2; exit 1; }
+              gh release upload "$tag" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+            else
+              target="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" --jq .object.sha)"
+              [[ "$target" == "$GITHUB_SHA" ]] || { echo 'Release tag points at another commit.' >&2; exit 1; }
+            fi
+          fi
+
+          # A published release stays unchanged on reruns. Incomplete drafts can recover.
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets,isDraft,url > release-state.json
+          jq -e '.assets | any(.name == "cc-jsonl-monitor-extension.zip" and .size > 0)' release-state.json
+          jq -e '.assets | any(.name == "cc-jsonl-monitor-extension.zip.sha256" and .size > 0)' release-state.json
+          if [[ "$(jq -r .isDraft release-state.json)" == true ]]; then
+            head="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${DEFAULT_BRANCH}" --jq .sha)"
+            latest=false
+            if [[ "$head" == "$GITHUB_SHA" ]]; then latest=true; fi
+            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest="$latest"
+          fi
+          url="$(jq -r .url release-state.json)"
+          printf '### Chrome extension\n\n[Download ZIP](%s)\n' "$url" >> "$GITHUB_STEP_SUMMARY"
