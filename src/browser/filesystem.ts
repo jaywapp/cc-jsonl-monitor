@@ -1,3 +1,4 @@
+import { analyzeFile } from '../../shared/analysis';
 import { LIMITS, parseLines, type JsonlLine, type ParsedFile } from '../../shared/parser';
 import { queryFile } from '../../shared/query';
 import type { Source, TreeEntry, TreeResult, RawRecord } from '../../shared/types';
@@ -155,6 +156,10 @@ export class BrowserFiles {
     while (this.generations.size > 32) this.generations.delete(this.generations.keys().next().value!);
     return queryFile(await this.snapshot(id, path), params);
   }
+  async analysis(id: string, path: string, revision: string) {
+    return analyzeFile(await this.snapshot(id, path), revision);
+  }
+
   async raw(id: string, path: string, line: number, revision: string): Promise<RawRecord> {
     if (!Number.isSafeInteger(line) || line < 1 || !revision) throw new Error('행 번호와 파일 버전이 필요합니다.');
     const handle = await this.fileHandle(id, path);

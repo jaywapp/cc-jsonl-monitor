@@ -1,9 +1,10 @@
+import AnalysisPanel from './AnalysisPanel';
 import { bindPreference, type ViewerPreferences } from './viewer-preferences';
 import type { Dispatch, SetStateAction } from 'react';
 import { EVENT_LABELS } from '../shared/event-labels';
 import type { EventKind } from '../shared/types';
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, ArrowDownUp, ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, SlidersHorizontal, Info, RefreshCw, Search, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowDownUp, ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, SlidersHorizontal, ChartNoAxesCombined, Info, RefreshCw, Search, ShieldCheck } from 'lucide-react';
 import type { FileView, Source } from '../shared/types';
 import { api, endpoint, messageOf } from './api';
 import { formatBytes, formatTime } from './format';
@@ -16,6 +17,7 @@ export default function FileViewer({ source, path, name, preferences, setPrefere
   const [data, setData] = useState<FileView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [analysisOpen, setAnalysisOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [query, setQuery] = bindPreference('query', preferences, setPreferences);
@@ -91,16 +93,17 @@ export default function FileViewer({ source, path, name, preferences, setPrefere
       <button type="button" className="icon-button" aria-label={sidebarVisible ? '파일 탐색기 접기' : '파일 탐색기 펼치기'} title={sidebarVisible ? '파일 탐색기 접기' : '파일 탐색기 펼치기'} onClick={onToggleSidebar}>{sidebarVisible ? <PanelLeftClose size={17} /> : <PanelLeftOpen size={17} />}</button>
       <h1 id="file-title" title={name}>{name}</h1>
       {data && <span className="session-count">{data.totalEvents.toLocaleString()}개 기록 · {data.sessionIds.length}개 세션</span>}
-      <button className="secondary-button compact" type="button" aria-expanded={infoOpen} aria-controls="session-info" onClick={() => setInfoOpen(value => !value)}><Info size={14} />파일 정보</button>
+      <button className="secondary-button compact analysis-toggle" type="button" disabled={!data || loading} aria-expanded={analysisOpen} aria-controls="work-analysis" onClick={() => setAnalysisOpen(value => !value)}><ChartNoAxesCombined size={14} />작업 패턴</button>
+      <button className="secondary-button compact" type="button" aria-expanded={infoOpen && !analysisOpen} aria-controls="session-info" onClick={() => { setInfoOpen(value => analysisOpen || !value); setAnalysisOpen(false); }}><Info size={14} />파일 정보</button>
       <button className="icon-button" type="button" aria-label="새로고침" title="새로고침" disabled={loading} onClick={refresh}><RefreshCw size={15} /></button>
     </header>
-    <div className="session-info" id="session-info" hidden={!infoOpen}>
+    <div className="session-info" id="session-info" hidden={!infoOpen || analysisOpen}>
       <p className="full-path">{data?.filePath || source.path}</p>
       {data && <p>{formatBytes(data.size)} · 마지막 기록 {formatTime(data.lastTimestamp, timezone)}</p>}
       <p>워크스페이스: {data?.cwdPaths.length ? data.cwdPaths.join(' · ') : '경로 미확인 · 파일 기준으로 표시합니다.'}</p>
     </div>
 
-    <div className="reader-controls">
+    <div className="reader-controls" hidden={analysisOpen}>
       <div className="primary-filters">
         <div className="search-control"><label className="sr-only" htmlFor="content-search">선택한 파일에서 검색</label><Search size={17} /><input id="content-search" type="search" placeholder="이 파일에서 요청, 도구, 내용 검색" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
 
@@ -125,12 +128,14 @@ export default function FileViewer({ source, path, name, preferences, setPrefere
     {change && <div className="update-banner" role="status"><span>{change === 'deleted' ? '원본 파일이 없어졌습니다. 현재 화면은 마지막으로 읽은 기록입니다.' : '파일에 새 기록이 추가되거나 내용이 변경되었습니다.'}</span><button type="button" onClick={refresh} disabled={loading}>다시 읽기</button></div>}
     {watchError && <div className="notice warning" role="status">변경 확인을 잠시 수행하지 못했습니다. {watchError}</div>}
 
-    <div className="timeline-scroll" ref={scrollRef} aria-busy={loading}>
+    <div className="timeline-scroll" hidden={analysisOpen} ref={scrollRef} aria-busy={loading}>
       {error ? <div className="content-error" role="alert"><AlertCircle size={30} /><h2>파일을 읽지 못했습니다</h2><p>{error}</p><button className="secondary-button" type="button" onClick={refresh}>다시 시도</button></div> : !data ? <div className="loading-state" role="status">{!invalidDates && <><div className="skeleton-line" /><div className="skeleton-line short" /></>}<p>{invalidDates ? '기간을 수정하면 기록을 표시합니다.' : 'JSONL 기록을 읽고 있습니다.'}</p></div> : <>
         {(data.diagnostics.length > 0 || data.pendingTail || data.truncated) && <details className="diagnostics"><summary><AlertCircle size={15} />읽기 상태 확인{data.diagnostics.length > 0 ? ` · 진단 ${data.diagnostics.length}개` : ''}{data.pendingTail ? ' · 마지막 줄 대기' : ''}</summary><div>{data.pendingTail && <p>마지막 줄이 아직 완성되지 않았습니다. 파일 변경 후 다시 읽으면 이어진 기록을 확인할 수 있습니다.</p>}{data.truncated && <p>처리 한도 때문에 일부 기록만 표시되었습니다.</p>}<ul>{data.diagnostics.map((diagnostic, index) => <li key={`${diagnostic.line}-${index}`}>{diagnostic.line > 0 ? `${diagnostic.line}번째 줄 · ` : ''}{diagnostic.message}</li>)}</ul></div></details>}
         {data.events.length === 0 ? <div className="content-empty"><Search size={32} strokeWidth={1.3} /><h2>{data.totalEvents ? '조건에 맞는 기록이 없습니다' : '표시할 기록이 없습니다'}</h2><p>{data.totalEvents ? '파일을 바꿔도 검색·필터는 유지됩니다. 조건을 바꾸거나 초기화해 보세요.' : '비어 있거나 지원 가능한 기록이 없는 파일입니다. 진단이 있다면 함께 확인하세요.'}</p>{hasFilters && <button className="secondary-button" type="button" onClick={resetFilters}>검색·필터 초기화</button>}</div> : view === 'conversation' ? <ConversationView key={data.revision} events={data.events} timezone={timezone} masked={masked} filtered={hasFilters} /> : <div className="events-list">{data.events.map((event) => <EventCard key={`${data.revision}:${event.id}`} event={event} timezone={timezone} masked={masked} />)}</div>}
       </>}
     </div>
-    {data && <footer className="pagination"><span className="result-count" role="status">{loading ? '기록 읽는 중…' : data.matchedEvents.toLocaleString() + '개 일치'} · {timeLabel}</span><span>{data.matchedEvents ? `${offset + 1}–${Math.min(offset + data.events.length, data.matchedEvents)} / ${data.matchedEvents.toLocaleString()}` : '0개 기록'}<span className="pagination-note"> · 페이지당 {pageSize}개</span></span><div><button type="button" className="icon-button" aria-label="이전 페이지" disabled={offset === 0 || loading} onClick={() => page(Math.max(0, offset - pageSize))}><ChevronLeft size={18} /></button><span>{Math.floor(offset / pageSize) + 1} / {Math.max(1, Math.ceil(data.matchedEvents / pageSize))}</span><button type="button" className="icon-button" aria-label="다음 페이지" disabled={offset + pageSize >= data.matchedEvents || loading} onClick={() => page(offset + pageSize)}><ChevronRight size={18} /></button></div></footer>}
+    {analysisOpen && data && !loading && <AnalysisPanel key={data.revision + reload} source={source.id} path={path} revision={data.revision} masked={masked} timezone={timezone} onClose={() => setAnalysisOpen(false)} />}
+    {analysisOpen && loading && <div className="loading-state" role="status">최신 기록을 읽고 있습니다.</div>}
+    {data && !analysisOpen && <footer className="pagination"><span className="result-count" role="status">{loading ? '기록 읽는 중…' : data.matchedEvents.toLocaleString() + '개 일치'} · {timeLabel}</span><span>{data.matchedEvents ? `${offset + 1}–${Math.min(offset + data.events.length, data.matchedEvents)} / ${data.matchedEvents.toLocaleString()}` : '0개 기록'}<span className="pagination-note"> · 페이지당 {pageSize}개</span></span><div><button type="button" className="icon-button" aria-label="이전 페이지" disabled={offset === 0 || loading} onClick={() => page(Math.max(0, offset - pageSize))}><ChevronLeft size={18} /></button><span>{Math.floor(offset / pageSize) + 1} / {Math.max(1, Math.ceil(data.matchedEvents / pageSize))}</span><button type="button" className="icon-button" aria-label="다음 페이지" disabled={offset + pageSize >= data.matchedEvents || loading} onClick={() => page(offset + pageSize)}><ChevronRight size={18} /></button></div></footer>}
   </section>;
 }

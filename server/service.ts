@@ -1,3 +1,4 @@
+import { analyzeFile } from '../shared/analysis.js';
 import { queryFile } from '../shared/query.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { opendir, realpath, stat } from 'node:fs/promises';
@@ -123,6 +124,10 @@ export class ViewerService {
 
   async file(sourceId: string, relative: string, params: URLSearchParams): Promise<FileView> {
     return queryFile(await this.snapshot(sourceId, relative), params);
+  }
+
+  async analysis(id: string, path: string, revision: string) {
+    return analyzeFile(await this.snapshot(id, path), revision);
   }
 
   async raw(sourceId: string, relative: string, line: number, revision: string): Promise<RawRecord> {

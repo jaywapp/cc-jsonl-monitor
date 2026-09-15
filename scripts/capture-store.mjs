@@ -8,7 +8,7 @@ await mkdir('.local/store-capture', { recursive: true });
 const profile = await mkdtemp(path.resolve('.local/store-capture/profile-'));
 const extension = path.resolve('dist/extension');
 const samples = await Promise.all([
-  'atlas/session-auth.jsonl', 'atlas/subagents/review-session.jsonl', 'ledger/session-export.jsonl',
+  'atlas/session-auth.jsonl', 'atlas/subagents/review-session.jsonl', 'ledger/session-export.jsonl', 'atlas/work-patterns.jsonl',
 ].map(async name => ({ name, content: await readFile(path.join('samples', name), 'utf8') })));
 const context = await chromium.launchPersistentContext(profile, {
   headless: true, channel: 'chromium', executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
@@ -51,6 +51,12 @@ try {
   await page.getByLabel('화면 테마').selectOption('dark');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.screenshot({ path: path.join(output, '03-title-filters.png') });
+  await page.getByRole('treeitem', { name: 'work-patterns.jsonl', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'work-patterns.jsonl', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '작업 패턴', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: '작업 패턴', exact: true }).click();
+  await expect(page.locator('.pattern-list > li')).toHaveCount(2);
+  await page.screenshot({ path: path.join(output, '04-work-patterns.png') });
   if (errors.length) throw new Error(errors.join('\n'));
 
   const promotion = await context.newPage();
@@ -67,7 +73,7 @@ try {
   await writeFile(path.join(output, 'assets.json'), JSON.stringify({
     extensionVersion: JSON.parse(await readFile('extension/manifest.json', 'utf8')).version, screenshotSize: [1280,800], promotionSize: [440,280],
     source: 'Packaged extension with synthetic samples only; native chooser replaced for capture.',
-    screenshots: ['01-dark-tree.png','02-light-tree.png','03-title-filters.png'],
+    screenshots: ['01-dark-tree.png','02-light-tree.png','03-title-filters.png','04-work-patterns.png'],
     promotion: 'promo-440x280.png', icon: 'icon-128.png',
   }, null, 2) + '\n');
   console.log(output);

@@ -67,6 +67,7 @@ export function createHandler(service = new ViewerService(), fallback?: Fallback
         case '/api/sources': result = await service.register((await readBody(request)).path); break;
         case '/api/tree': result = await service.tree(source, relative); break;
         case '/api/file': result = await service.file(source, relative, params); break;
+        case '/api/analysis': result = await service.analysis(source, relative, params.get('revision') ?? ''); break;
         case '/api/revision': result = await service.revision(source, relative); break;
         case '/api/raw': result = await service.raw(source, relative, Number(params.get('line')), params.get('revision') ?? ''); break;
         default: throw new ViewerError(404, '요청한 기능을 찾을 수 없습니다.');
