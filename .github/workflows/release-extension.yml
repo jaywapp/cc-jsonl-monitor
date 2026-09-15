@@ -38,7 +38,11 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: chrome-extension
-          path: dist/release/*
+          path: |
+            dist/release/cc-jsonl-monitor-extension.zip
+            dist/release/cc-jsonl-monitor-extension.zip.sha256
+            dist/release/release.json
+            dist/release/release-notes.md
           if-no-files-found: error
           retention-days: 14
 
