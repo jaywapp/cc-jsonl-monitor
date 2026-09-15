@@ -110,3 +110,5 @@ dist/                빌드 결과와 설치 ZIP (Git 제외)
 [최초 제안서](docs/proposal/README.md)의 3영역 화면은 초기 구상이며, 실제 구현에는 이후 확정된 **좌측 파일 트리 / 우측 선택 내용** 구조를 적용했습니다.
 
 기록별 해석 범위와 생략 기준은 [기록 해석 규칙](docs/record-patterns.md)을 참고하세요.
+
+최신 설치 ZIP은 [GitHub Releases](https://github.com/jaywapp/cc-jsonl-monitor/releases/latest)에서 받을 수 있습니다. 기본 브랜치 반영 시 테스트를 통과한 커밋의 ZIP을 자동 게시합니다. 자세한 절차는 [배포 안내](docs/extension/release.md)를 참고하세요.

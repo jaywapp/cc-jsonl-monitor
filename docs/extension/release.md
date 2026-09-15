@@ -51,3 +51,19 @@ npm run test:extension
 촬영은 새 브라우저 프로필에서 저장소의 가상 샘플만 사용합니다. 선택창을 합성 폴더로 대체하므로 이 작업이 실제 운영체제 선택창 검증을 대신하지는 않습니다.
 
 `dist/release/cc-jsonl-monitor-webstore-kit.zip`은 실행 ZIP과 등록 자료를 모은 전달용 묶음입니다. 웹 스토어의 확장 업로드에는 그 안의 `cc-jsonl-monitor-extension.zip`만 사용하고, 스크린샷과 홍보 이미지는 각 등록 필드에 따로 첨부합니다.
+## GitHub Releases 자동 게시
+
+기본 브랜치에 push 또는 PR 병합이 발생하면 `.github/workflows/release-extension.yml`이 실행됩니다. 현재 기본 브랜치는 `codex/viewer-proposal`이며, 워크플로가 GitHub의 기본 브랜치 설정을 읽으므로 이름을 바꾸어도 따라갑니다. PR에서는 빌드 검증만 수행합니다.
+
+1. Windows 실행 환경에서 Node.js 22로 의존성을 설치합니다.
+2. 타입 검사·공통 테스트·확장 빌드·실제 Chromium 확장 테스트를 실행합니다.
+3. ZIP 루트의 manifest와 버전, 포함 파일 목록을 검사하고 SHA-256을 만듭니다.
+4. 검증이 성공하면 해당 커밋을 가리키는 `build-<전체 커밋 SHA>` 태그와 릴리즈를 생성합니다.
+5. `cc-jsonl-monitor-extension.zip`과 `cc-jsonl-monitor-extension.zip.sha256`을 첨부하고 설치 방법을 안내합니다.
+
+앱 버전이 그대로여도 커밋별 릴리즈를 생성합니다. 같은 커밋을 재실행하면 이미 게시한 릴리즈는 유지하고, 중단된 초안은 업로드를 다시 시도합니다. 이전 커밋의 빌드가 늦게 끝나도 현재 기본 브랜치의 커밋이 아니면 Latest로 올리지 않습니다. 실패한 테스트나 빌드는 게시 단계로 넘어가지 않습니다.
+
+Actions의 **Release Chrome extension → Run workflow**에서 기본 브랜치를 선택하면 수동으로도 실행할 수 있습니다. 별도 PAT나 시크릿 등록은 필요 없으며, GitHub가 제공하는 토큰의 쓰기 권한은 게시 작업에만 부여합니다. 이 설정은 GitHub Releases 게시용이며 Chrome 웹 스토어에 제출하지 않습니다.
+
+[최신 릴리즈 ZIP 다운로드](https://github.com/jaywapp/cc-jsonl-monitor/releases/latest/download/cc-jsonl-monitor-extension.zip). 비공개 저장소의 릴리즈를 다운로드하려면 저장소 접근 권한이 필요합니다.
+
