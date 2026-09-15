@@ -1,8 +1,9 @@
 import type { Diagnostic, EventKind, TranscriptEvent } from './types.js';
+import { present } from './presentation.js';
 import { ViewerError } from './errors.js';
 
 export const LIMITS = { fileBytes: 128 * 1024 * 1024, lineBytes: 512 * 1024, events: 50_000, previewChars: 8_000, totalPreviewChars: 16 * 1024 * 1024, diagnostics: 1_000 };
-export const EVENT_KINDS: EventKind[] = ['user', 'assistant', 'tool_use', 'tool_result', 'thinking', 'system', 'unknown'];
+export const EVENT_KINDS: EventKind[] = ['user', 'assistant', 'tool_use', 'tool_result', 'thinking', 'system', 'progress', 'summary', 'file_history', 'session', 'unknown'];
 export interface ParsedFile {
   events: TranscriptEvent[];
   diagnostics: Diagnostic[];
@@ -19,22 +20,6 @@ export interface JsonlLine { line: number; raw: string; terminated: boolean; }
 type RecordValue = Record<string, unknown>;
 const object = (value: unknown): RecordValue => value !== null && typeof value === 'object' && !Array.isArray(value) ? value as RecordValue : {};
 const string = (value: unknown): string | null => typeof value === 'string' && value.length ? value : null;
-const serialize = (value: unknown): string => typeof value === 'string' ? value : JSON.stringify(value ?? '') ?? '';
-
-function blockText(block: RecordValue): string {
-  if (typeof block.text === 'string') return block.text;
-  if (typeof block.thinking === 'string') return block.thinking;
-  if (block.type === 'tool_use') return serialize(block.input);
-  if (block.type === 'tool_result') {
-    if (Array.isArray(block.content)) return block.content.map(item => {
-      const part = object(item);
-      return typeof part.text === 'string' ? part.text : serialize(item);
-    }).join('\n');
-    return serialize(block.content);
-  }
-  return serialize(block);
-}
-
 export async function parseLines(lines: AsyncIterable<JsonlLine>, sourceId: string): Promise<ParsedFile> {
   const events: TranscriptEvent[] = [];
   const diagnostics: Diagnostic[] = [];
@@ -68,21 +53,20 @@ export async function parseLines(lines: AsyncIterable<JsonlLine>, sourceId: stri
     if (cwd) cwdPaths.add(cwd);
     const role = string(message.role) ?? string(record.type);
     const content = message.content ?? record.content;
-    const blocks = Array.isArray(content) && content.length ? content : [content ?? value];
+    const conversation = record.type === 'user' || record.type === 'assistant' || (!record.type && content !== undefined);
+    const plainSystem = record.type === 'system' && !record.subtype && typeof content === 'string';
+    const blocks = conversation ? (Array.isArray(content) && content.length ? content : [content ?? value]) : [plainSystem ? content : value];
     for (let blockIndex = 0; blockIndex < blocks.length; blockIndex++) {
       const block = object(blocks[blockIndex]);
-      let kind: EventKind = role === 'user' || role === 'assistant' || role === 'system' ? role : 'unknown';
-      if (block.type === 'tool_use' || block.type === 'tool_result' || block.type === 'thinking') kind = block.type;
-      const fullText = typeof blocks[blockIndex] === 'string' ? blocks[blockIndex] as string : blockText(block);
-      const text = fullText.slice(0, LIMITS.previewChars);
-      totalChars += text.length;
+      const presentation = present(record, blocks[blockIndex], role, LIMITS.previewChars);
+      const { kind, text, details, title, partial, truncated } = presentation;
+      totalChars += text.length + (title?.length ?? 0) + details.reduce((sum, field) => sum + field.label.length + field.value.length, 0);
       if (events.length >= LIMITS.events || totalChars > LIMITS.totalPreviewChars) throw new ViewerError(413, '이벤트 50,000개 또는 미리보기 합계 16,777,216자 제한을 초과합니다. 파일을 나누어 열어 주세요.');
       events.push({
-        id: `${sourceId}:${entry.line}:${blockIndex}`, kind, line: entry.line, blockIndex, timestamp, sessionId, cwd, text,
-        isError: block.is_error === true || record.is_error === true || record.level === 'error',
+        id: `${sourceId}:${entry.line}:${blockIndex}`, kind, line: entry.line, blockIndex, timestamp, sessionId, cwd, text, details, title, partial, truncated,
+        isError: block.is_error === true || record.is_error === true || record.level === 'error' || record.subtype === 'api_error' || (record.type === 'result' && typeof record.subtype === 'string' && record.subtype.startsWith('error')) || [record, object(record.data)].some(part => part.is_error === true || ['error', 'failed'].includes(String(part.status ?? part.outcome)) || (typeof (part.exit_code ?? part.exitCode) === 'number' && (part.exit_code ?? part.exitCode) !== 0)),
         ...(kind === 'tool_use' ? { toolName: string(block.name) ?? 'unknown', toolUseId: string(block.id) ?? undefined } : {}),
         ...(kind === 'tool_result' ? { toolUseId: string(block.tool_use_id) ?? undefined } : {}),
-        ...(fullText.length > text.length ? { truncated: true } : {}),
       });
       counts[kind]++;
     }

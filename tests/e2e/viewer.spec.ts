@@ -43,7 +43,7 @@ test('opens directory tree and selected JSONL on the right without executing log
   expect(errors).toEqual([]);
 });
 
-test('filters, searches, sorts, and fetches original lines', async ({ page }) => {
+test('filters, searches, sorts, and displays readable content', async ({ page }) => {
   await openPath(page, transcript);
   await expect(page.locator('.event-card')).toHaveCount(4);
   await page.getByLabel('오류 필터', { exact: true }).selectOption('error');
@@ -56,9 +56,8 @@ test('filters, searches, sorts, and fetches original lines', async ({ page }) =>
   await expect(page.locator('.event-card')).toHaveCount(4);
   await page.getByLabel('시간 정렬', { exact: true }).selectOption('desc');
   await expect(page.locator('.event-body').first()).toContainText('실패한 테스트를 확인했습니다.');
-  await page.locator('.raw-toggle').first().click();
-  await expect(page.locator('.raw-record pre')).toContainText('test-session');
-  await expect(page.locator('.raw-record pre')).toContainText('2026-09-14T10:01:00+09:00');
+  await expect(page.locator('.raw-toggle, .raw-record')).toHaveCount(0);
+  await expect(page.locator('.event-session').first()).toContainText('test-session');
   await expect(page.getByRole('treeitem')).toHaveCount(1);
 });
 
@@ -90,8 +89,7 @@ test('file reads leave original bytes unchanged and narrow screens do not overfl
   const before = createHash('sha256').update(await readFile(transcript)).digest('hex');
   await openPath(page, transcript);
   await expect(page.locator('.event-card')).toHaveCount(4);
-  await page.locator('.raw-toggle').first().click();
-  await expect(page.locator('.raw-record pre')).toBeVisible();
+  await expect(page.locator('.event-details')).toContainText('npm test');
   const after = createHash('sha256').update(await readFile(transcript)).digest('hex');
   expect(after).toBe(before);
   for (const width of [390, 320]) {
@@ -119,4 +117,16 @@ test('handles folders named like inherited JavaScript properties', async ({ page
     await expect(page.locator('.event-card')).toHaveCount(4);
   }
   expect(errors).toEqual([]);
+});
+test('supplemental records use readable fields and new filters in server mode', async ({ page }) => {
+  await openPath(page, path.resolve('samples/atlas/record-patterns.jsonl'));
+  await expect(page.locator('.event-card')).toHaveCount(10);
+  const titles = page.getByRole('group', { name: /기록 제목/ });
+  await titles.getByRole('button', { name: '선택 해제', exact: true }).click();
+  await titles.getByRole('button', { name: /^대화 요약/ }).click();
+  await expect(page.locator('.event-card')).toHaveCount(3);
+  await page.getByLabel('선택한 파일에서 검색').fill('압축');
+  await expect(page.locator('.event-card')).toHaveCount(1);
+  await expect(page.locator('.event-details')).toContainText('12');
+  await expect(page.locator('.raw-toggle, .raw-record')).toHaveCount(0);
 });
