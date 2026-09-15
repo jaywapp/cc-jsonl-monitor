@@ -87,6 +87,7 @@ export interface ViewerConfig {
 // GET /api/file?source=&path=&q=&kind=&order=asc|desc&session=&from=&to=&offset=0&limit=100 -> FileView
 //   kind accepts EventKind, all, tools (both tool kinds), error.
 //   from/to use YYYY-MM-DD and timezone=local|utc; backend defaults local.
+// GET /api/analysis?source=&path=&revision= -> WorkAnalysis (full file, 409 on changed file)
 // GET /api/raw?source=&path=&line=&revision= -> RawRecord (409 on changed file)
 // GET /api/revision?source=&path= -> { revision: string, exists: boolean }
 // Every request sends X-Viewer-Request: 1. No CORS. Errors: { error: string }.

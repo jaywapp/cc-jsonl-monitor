@@ -1,5 +1,5 @@
 {
-  "extensionVersion": "0.5.0",
+  "extensionVersion": "0.6.0",
   "screenshotSize": [
     1280,
     800
@@ -12,7 +12,8 @@
   "screenshots": [
     "01-dark-tree.png",
     "02-light-tree.png",
-    "03-title-filters.png"
+    "03-title-filters.png",
+    "04-work-patterns.png"
   ],
   "promotion": "promo-440x280.png",
   "icon": "icon-128.png"

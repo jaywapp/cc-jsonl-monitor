@@ -283,3 +283,35 @@ test('desktop layout prioritizes the transcript while keeping controls and detai
   await page.getByLabel('화면 테마').selectOption('light');
   await page.screenshot({ path: '.local/screenshots/desktop-reader-light.png' });
 });
+
+test('work analysis covers the full file, shows evidence and preserves reading state', async ({ page }) => {
+  const file = path.join(folder, 'analysis.jsonl');
+  await writeFile(file, await readFile(path.resolve('samples/atlas/work-patterns.jsonl'), 'utf8'));
+  await openPath(page, file);
+  await expect(page.locator('.event-card')).toHaveCount(12);
+  await page.locator('.timeline-scroll').evaluate(element => element.scrollTop = 180);
+  const position = await page.locator('.timeline-scroll').evaluate(element => element.scrollTop);
+  await page.getByRole('button', { name: '작업 패턴', exact: true }).click();
+  const analysis = page.locator('#work-analysis');
+  await expect(analysis.locator('.analysis-summary')).toContainText('12개 기록');
+  await expect(analysis.locator('.pattern-list > li')).toHaveCount(2);
+  await expect(analysis.locator('.analysis-flows > ol > li')).toHaveCount(2);
+  await expect(analysis.getByRole('heading', { name: 'Read · 오류 뒤 같은 호출' })).toBeVisible();
+  await analysis.locator('.analysis-evidence summary').first().click();
+  await expect(analysis.locator('.analysis-evidence').first()).toContainText('3번째 줄');
+  await page.getByRole('button', { name: '대화로 돌아가기' }).click();
+  expect(await page.locator('.timeline-scroll').evaluate(element => element.scrollTop)).toBe(position);
+  await page.getByLabel('선택한 파일에서 검색').fill('not-present');
+  await expect(page.locator('.event-card')).toHaveCount(0);
+  await page.getByRole('button', { name: '작업 패턴', exact: true }).click();
+  await expect(analysis.locator('.analysis-summary')).toContainText('12개 기록');
+  await page.getByRole('button', { name: '대화로 돌아가기' }).click();
+  await expect(page.getByLabel('선택한 파일에서 검색')).toHaveValue('not-present');
+  await page.getByRole('button', { name: '초기화', exact: true }).click();
+  await expect(page.locator('.event-card')).toHaveCount(12);
+  await appendFile(file, JSON.stringify({ type: 'user', sessionId: 'pattern-demo', content: 'new request' }) + '\n');
+  await page.getByRole('button', { name: '작업 패턴', exact: true }).click();
+  await expect(analysis.getByRole('alert')).toContainText('파일이 변경');
+  await page.getByRole('button', { name: '새로고침', exact: true }).click();
+  await expect(analysis.locator('.analysis-summary')).toContainText('13개 기록');
+});

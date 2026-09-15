@@ -266,3 +266,34 @@ test('extension keeps filters and conversation mode across file picker connectio
   await expect(page.getByRole('button', { name: '대화형', exact: true })).toHaveAttribute('aria-pressed', 'true');
   expect(errors).toEqual([]); expect(network).toEqual([]);
 });
+
+test('packaged extension analyzes local patterns with masked evidence and no external calls', async () => {
+  await page.getByRole('button', { name: '초기화', exact: true }).click();
+  const content = (await readFile(path.resolve('samples/atlas/work-patterns.jsonl'), 'utf8')).replaceAll('src/auth.ts', 'src/auth.ts?password=synthetic-demo-only');
+  await page.evaluate(async value => {
+    const root = await navigator.storage.getDirectory();
+    const handle = await root.getFileHandle('work-patterns.jsonl', { create: true });
+    const writer = await handle.createWritable(); await writer.write(value); await writer.close();
+    Object.assign(window, { showOpenFilePicker: async () => [handle] });
+  }, content);
+  await revealControls(page, '연결 관리');
+  await page.getByRole('button', { name: '파일 열기', exact: true }).click();
+  await expect(page.locator('.event-card')).toHaveCount(12);
+  await page.getByRole('button', { name: '작업 패턴', exact: true }).click();
+  const analysis = page.locator('#work-analysis');
+  await expect(analysis.locator('.pattern-list > li')).toHaveCount(2);
+  await expect(analysis.locator('.analysis-summary')).toContainText('도구 호출 4회');
+  await analysis.locator('.analysis-evidence summary').first().click();
+  await expect(analysis.locator('.analysis-evidence').first()).toContainText('[가림]');
+  await expect(analysis).not.toContainText('synthetic-demo-only');
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByLabel('화면 테마').selectOption('dark');
+  await page.screenshot({ path: '.local/screenshots/analysis-dark.png' });
+  await page.getByLabel('화면 테마').selectOption('light');
+  await page.screenshot({ path: '.local/screenshots/analysis-light.png' });
+  await page.setViewportSize({ width: 1024, height: 768 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', { name: '대화로 돌아가기' }).click();
+  await expect(page.locator('.conversation-list')).toBeVisible();
+  expect(errors).toEqual([]); expect(network).toEqual([]);
+});

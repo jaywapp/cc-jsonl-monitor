@@ -13,6 +13,7 @@ scope.onmessage = async ({ data }) => {
       case 'entry': result = await files.entry(source, path); break;
       case 'tree': result = await files.tree(source, path); break;
       case 'file': result = await files.file(source, path, params); break;
+      case 'analysis': result = await files.analysis(source, path, params.get('revision') || ''); break;
       case 'revision': result = await files.revision(source, path); break;
       case 'raw': result = await files.raw(source, path, Number(params.get('line')), params.get('revision') || ''); break;
       default: throw new Error('지원하지 않는 요청입니다.');
