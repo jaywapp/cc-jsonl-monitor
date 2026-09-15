@@ -5,6 +5,11 @@ import { mkdtemp, mkdir, readFile } from 'node:fs/promises';
 let context: BrowserContext;
 let page: Page;
 let url: string;
+async function revealControls(page: Page, label: string) {
+  const toggle = page.getByRole('button', { name: new RegExp('^' + label) });
+  if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
+}
+
 const errors: string[] = [];
 const network: string[] = [];
 test.beforeAll(async () => {
@@ -43,10 +48,14 @@ test.beforeAll(async () => {
 test.afterAll(async () => { await context?.close(); });
 
 test('packaged extension connects a folder, transfers handles to its worker and reads the tree', async () => {
+  await revealControls(page, '연결 관리');
   await page.getByRole('button', { name: '폴더 연결', exact: true }).click();
   await page.getByRole('treeitem', { name: 'atlas', exact: true }).click();
   await page.getByRole('treeitem', { name: 'session.jsonl', exact: true }).click();
   await expect(page.locator('.event-card')).toHaveCount(4);
+  await expect(page.locator('#source-controls')).toBeHidden();
+  await expect(page.locator('#advanced-filters')).toBeHidden();
+  expect(await page.locator('.timeline-scroll').evaluate(element => element.getBoundingClientRect().height / innerHeight)).toBeGreaterThan(.70);
   await expect(page.locator('.event-body img')).toHaveCount(0);
   await expect(page.locator('.event-details').first()).toContainText('npm test');
   await expect(page.locator('.raw-toggle, .raw-record')).toHaveCount(0);
@@ -54,16 +63,22 @@ test('packaged extension connects a folder, transfers handles to its worker and 
 });
 
 test('title filters select call/result independently, combine titles, and clear all', async () => {
+  await revealControls(page, '필터·설정');
   const titles = page.getByRole('group', { name: /기록 제목/ });
+  await revealControls(page, '필터·설정');
   for (const name of ['사용자 요청', 'Claude', '생각 기록', '시스템', '기타 기록']) await titles.getByRole('button', { name: new RegExp(`^${name}`) }).click();
   await expect(page.locator('.event-card')).toHaveCount(2);
+  await revealControls(page, '필터·설정');
   await titles.getByRole('button', { name: /^도구 호출/ }).click();
   await expect(page.locator('.event-card')).toHaveCount(1);
   await expect(page.locator('.event-header strong')).toHaveText('도구 결과');
+  await revealControls(page, '필터·설정');
   await titles.getByRole('button', { name: /^도구 결과/ }).click();
   await expect(page.getByRole('heading', { name: '조건에 맞는 기록이 없습니다' })).toBeVisible();
+  await revealControls(page, '필터·설정');
   await titles.getByRole('button', { name: /^기타 기록/ }).click();
   await expect(page.locator('.event-header strong')).toHaveText('기타 기록');
+  await revealControls(page, '필터·설정');
   await titles.getByRole('button', { name: '전체', exact: true }).click();
   await expect(page.locator('.event-card')).toHaveCount(4);
 });
@@ -91,6 +106,7 @@ test('themes follow system, persist explicit choice, and retain contrast and lay
 });
 
 test('restored connection supports relative paths and detects updates with manual apply', async () => {
+  await revealControls(page, '연결 관리');
   await page.getByLabel('폴더 내 경로').fill('atlas/session.jsonl');
   await page.getByRole('button', { name: '이동', exact: true }).click();
   await expect(page.locator('.event-card')).toHaveCount(4);
@@ -105,6 +121,7 @@ test('restored connection supports relative paths and detects updates with manua
   await expect(page.locator('.event-card')).toHaveCount(4);
   await page.getByRole('button', { name: '다시 읽기', exact: true }).click();
   await expect(page.locator('.event-card')).toHaveCount(5);
+  await revealControls(page, '연결 관리');
   await page.getByLabel('폴더 내 경로').fill('../outside.jsonl'); await page.getByRole('button', { name: '이동', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('상위 폴더');
 });
@@ -115,11 +132,14 @@ test('file picker works independently, cancellation keeps selection, forgetting 
     const dir = await logs.getDirectoryHandle('atlas'); const file = await dir.getFileHandle('session.jsonl');
     Object.assign(window, { showOpenFilePicker: async () => [file], showDirectoryPicker: async () => { throw new DOMException('cancelled', 'AbortError'); } });
   });
+  await revealControls(page, '연결 관리');
   await page.getByRole('button', { name: '파일 열기', exact: true }).click();
   await expect(page.locator('.event-card')).toHaveCount(5);
   await expect(page.getByRole('treeitem')).toHaveCount(1);
+  await revealControls(page, '연결 관리');
   await page.getByRole('button', { name: '폴더 연결', exact: true }).click();
   await expect(page.locator('.event-card')).toHaveCount(5);
+  await revealControls(page, '연결 관리');
   await page.getByRole('button', { name: 'session.jsonl 연결 목록에서 제거' }).click();
   await expect(page.getByRole('heading', { name: '기록이 있는 곳부터 시작하세요.' })).toBeVisible();
   expect(await page.evaluate(async () => {
@@ -137,11 +157,15 @@ test('new record patterns are readable, searchable, masked, and responsive in th
     const writer = await handle.createWritable(); await writer.write(content); await writer.close();
     Object.assign(window, { showOpenFilePicker: async () => [handle] });
   }, content);
+  await revealControls(page, '연결 관리');
   await page.getByRole('button', { name: '파일 열기', exact: true }).click();
   await expect(page.locator('.event-card')).toHaveCount(10);
   await expect(page.locator('.raw-toggle, .raw-record, .event-card pre')).toHaveCount(0);
+  await revealControls(page, '필터·설정');
   const titles = page.getByRole('group', { name: /기록 제목/ });
+  await revealControls(page, '필터·설정');
   await titles.getByRole('button', { name: '선택 해제', exact: true }).click();
+  await revealControls(page, '필터·설정');
   await titles.getByRole('button', { name: /^기타 기록/ }).click();
   await expect(page.locator('.event-card')).toHaveCount(1);
   await page.getByRole('button', { name: /추가 항목 .*개 보기/ }).click();
@@ -149,8 +173,10 @@ test('new record patterns are readable, searchable, masked, and responsive in th
   await expect(page.locator('.event-details')).toContainText('[가림]');
   await expect(page.locator('.event-card')).not.toContainText('synthetic-demo-only');
   await expect(page.locator('.event-card img')).toHaveCount(0);
+  await revealControls(page, '필터·설정');
   await page.getByLabel('민감 값 가리기').uncheck();
   await expect(page.locator('.event-details')).toContainText('synthetic-demo-only');
+  await revealControls(page, '필터·설정');
   await page.getByLabel('민감 값 가리기').check();
   await page.getByLabel('화면 테마').selectOption('dark');
   await page.screenshot({ path: '.local/screenshots/readable-dark.png' });
@@ -165,17 +191,22 @@ test('new record patterns are readable, searchable, masked, and responsive in th
   await page.evaluate(() => document.documentElement.style.zoom = '2');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.evaluate(() => document.documentElement.style.zoom = '1');
+  await revealControls(page, '필터·설정');
   await titles.getByRole('button', { name: '전체', exact: true }).click();
   await page.getByLabel('선택한 파일에서 검색').fill('콜백');
   await expect(page.locator('.event-card')).toHaveCount(1);
   await expect(page.locator('.event-header strong')).toHaveText(['에이전트 진행 상황']);
   await page.getByLabel('선택한 파일에서 검색').fill('');
+  await revealControls(page, '필터·설정');
   await titles.getByRole('button', { name: '선택 해제', exact: true }).click();
+  await revealControls(page, '필터·설정');
   await titles.getByRole('button', { name: /^파일 이력/ }).click();
   await expect(page.locator('.event-card')).toHaveCount(1);
   await expect(page.locator('.event-header strong')).toHaveText(['파일 이력']);
   await expect(page.locator('.event-details')).toContainText('src/auth.ts');
+  await revealControls(page, '필터·설정');
   await titles.getByRole('button', { name: '전체', exact: true }).click();
+  await revealControls(page, '필터·설정');
   await page.getByLabel('오류 필터', { exact: true }).selectOption('error');
   await expect(page.locator('.event-card')).toHaveCount(1);
   await expect(page.locator('.event-header strong')).toHaveText(['훅 처리 결과']);
@@ -201,6 +232,7 @@ test('extension keeps filters and conversation mode across file picker connectio
     let index = 0;
     Object.assign(window, { showOpenFilePicker: async () => [handles[index++]] });
   });
+  await revealControls(page, '연결 관리');
   await page.getByRole('button', { name: '파일 열기', exact: true }).click();
   await expect(page.locator('.event-card')).toHaveCount(4);
   await expect(page.locator('.activity-group .event-tool_use')).not.toBeVisible();
@@ -216,15 +248,20 @@ test('extension keeps filters and conversation mode across file picker connectio
   }
   await page.screenshot({ path: '.local/screenshots/conversation-mobile.png', fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await revealControls(page, '필터·설정');
   const titles = page.getByRole('group', { name: /기록 제목/ });
+  await revealControls(page, '필터·설정');
   await titles.getByRole('button', { name: '선택 해제', exact: true }).click();
+  await revealControls(page, '필터·설정');
   await titles.getByRole('button', { name: /^Claude/ }).click();
   await page.getByLabel('선택한 파일에서 검색').fill('확인했습니다');
   await expect(page.locator('.event-header strong')).toHaveText(['Claude']);
+  await revealControls(page, '연결 관리');
   await page.getByRole('button', { name: '파일 열기', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'chat-second.jsonl', exact: true })).toBeVisible();
   await expect(page.locator('.event-header strong')).toHaveText(['Claude']);
   await expect(page.getByLabel('선택한 파일에서 검색')).toHaveValue('확인했습니다');
+  await revealControls(page, '필터·설정');
   await expect(titles.getByRole('button', { name: /^사용자 요청/ })).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByRole('button', { name: '대화형', exact: true })).toHaveAttribute('aria-pressed', 'true');
   expect(errors).toEqual([]); expect(network).toEqual([]);

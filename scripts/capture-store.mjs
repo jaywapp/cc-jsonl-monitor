@@ -42,6 +42,7 @@ try {
   await page.getByLabel('화면 테마').selectOption('light');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await page.screenshot({ path: path.join(output, '02-light-tree.png') });
+  await page.getByRole('button', { name: /^필터·설정/ }).click();
   const titles = page.getByRole('group', { name: /기록 제목/ });
   await titles.getByRole('button', { name: '선택 해제', exact: true }).click();
   await titles.getByRole('button', { name: /^도구 호출/ }).click();

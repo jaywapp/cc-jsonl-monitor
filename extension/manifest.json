@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CC JSONL Monitor",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "minimum_chrome_version": "122",
   "description": "Claude Code JSONL 로그를 폴더 트리와 시간순으로 읽는 로컬 전용 뷰어. 폴더 연결, 제목 필터, 다크모드 지원.",
   "action": { "default_title": "CC JSONL Monitor 열기", "default_icon": { "16": "icons/16.png", "32": "icons/32.png" } },
