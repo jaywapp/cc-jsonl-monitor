@@ -347,3 +347,66 @@ code, pre { font-family: Consolas, "SFMono-Regular", monospace; }
   .activity-group { margin-left: 0; }
   .activity-kinds { display: block; margin: 3px 0 0 20px; }
 }
+
+/* Compact reading workspace: supporting controls yield space to the transcript. */
+.header-source { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
+.header-source > span { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-controls { flex-shrink: 0; max-height: 35dvh; overflow: auto; }
+.session-heading { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 6px 16px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.session-heading h1 { flex: 1; min-width: 0; margin: 0; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-count { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.session-info { padding: 12px 20px; background: var(--surface-alt); border-bottom: 1px solid var(--line); max-height: 25dvh; overflow: auto; flex-shrink: 0; }
+.session-info p { margin: 0 0 4px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.reader-controls { padding: 8px 20px; border-bottom: 1px solid var(--line); background: var(--surface); flex-shrink: 0; }
+.reader-controls .primary-filters { align-items: center; gap: 8px; }
+.reader-controls .search-control input { padding-block: 5px; }
+.reader-controls .select-field select { height: 32px; padding-block: 4px; }
+.reader-controls .view-switch button { min-height: 30px; }
+.reader-controls .filter-panel { padding: 12px 0 4px; border: 0; background: transparent; max-height: 32dvh; overflow: auto; }
+.reader-controls .title-filters { margin: 0; }
+.reader-controls .view-options { margin-top: 12px; font-size: 12px; }
+.filter-toggle[aria-expanded="true"], .filter-toggle > span { color: var(--accent); }
+.filter-toggle > span { font-size: 11px; }
+.session-heading .compact { font-weight: 400; }
+@media (min-width: 621px) {
+  .app-header { height: 48px; flex-basis: 48px; padding-inline: 16px; gap: 24px; }
+  .app-brand { gap: 8px; }
+  .app-brand > strong { font-size: 16px; }
+  .brand-symbol { width: 28px; height: 28px; }
+  .header-actions { gap: 12px; }
+  .workspace-layout { grid-template-columns: 248px minmax(0, 1fr); }
+  .workspace-layout.sidebar-collapsed { grid-template-columns: minmax(0, 1fr); }
+  .pane-heading { padding: 8px 12px; }
+  .tree-root-path { padding: 0 16px 8px; }
+  .tree-row { min-height: 32px; padding-block: 4px; font-size: 12px; }
+  .pagination { min-height: 40px; padding: 4px 20px; font-size: 11px; }
+  .pagination-note { display: none; }
+  .events-list { max-width: 1440px; padding-inline: 24px; }
+  .conversation-list { padding-top: 12px; }
+  .conversation-list > .event-card { width: min(92%, 1000px); margin-bottom: 20px; }
+  .conversation-list > .event-card > .event-content { padding: 12px 16px; }
+  .conversation-divider { margin: 4px 0 12px; }
+  .conversation-session { margin-bottom: 12px; }
+}
+@media (min-width: 621px) and (max-width: 1100px) {
+  .app-header { gap: 12px; }
+  .local-status { display: none; }
+  .workspace-layout { grid-template-columns: 216px minmax(0, 1fr); }
+  .session-count { display: none; }
+}
+@media (max-width: 850px) {
+  .reader-controls .primary-filters { flex-wrap: wrap; }
+  .reader-controls .search-control { flex-basis: 100%; }
+  .session-heading { gap: 6px; padding-inline: 10px; }
+  .session-count { display: none; }
+  .pagination .result-count { display: none; }
+}
+@media (max-width: 620px) {
+  .header-source { flex: 0 0 auto; }
+  .header-source > span { display: none; }
+  .header-source .compact { padding-inline: 6px; font-size: 11px; }
+  .header-source svg { display: none; }
+  .app-brand > strong { font-size: 12px; }
+  .brand-symbol { display: none; }
+  .reader-controls { padding-inline: 12px; }
+}
