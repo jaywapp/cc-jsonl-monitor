@@ -1,3 +1,5 @@
+import { EVENT_LABELS } from '../shared/event-labels';
+import type { EventKind } from '../shared/types';
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowDownUp, ChevronLeft, ChevronRight, FileJson2, RefreshCw, Search, ShieldCheck, X } from 'lucide-react';
 import type { FileView, Source } from '../shared/types';
@@ -13,6 +15,7 @@ export default function FileViewer({ source, path, name }: Props) {
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [titles, setTitles] = useState<EventKind[]>(Object.keys(EVENT_LABELS) as EventKind[]);
   const [kind, setKind] = useState('all');
   const [session, setSession] = useState('');
   const [order, setOrder] = useState('asc');
@@ -38,7 +41,7 @@ export default function FileViewer({ source, path, name }: Props) {
     if (invalidDates) return;
     const controller = new AbortController();
     setLoading(true); setError('');
-    api<FileView>(endpoint('file', { source: source.id, path, q: debouncedQuery, kind, session, order, timezone, from, to, offset, limit: pageSize }), { signal: controller.signal })
+    api<FileView>(endpoint('file', { source: source.id, path, q: debouncedQuery, titles: titles.join(','), kind, session, order, timezone, from, to, offset, limit: pageSize, refresh: reload }), { signal: controller.signal })
       .then((result) => {
         if (controller.signal.aborted) return;
         if (offset > 0 && offset >= result.matchedEvents) { setOffset(0); return; }
@@ -47,13 +50,13 @@ export default function FileViewer({ source, path, name }: Props) {
       .catch((reason) => { if (!controller.signal.aborted) setError(messageOf(reason)); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [source.id, path, debouncedQuery, kind, session, order, timezone, from, to, offset, reload, invalidDates]);
+  }, [source.id, path, debouncedQuery, titles, kind, session, order, timezone, from, to, offset, reload, invalidDates]);
 
   useEffect(() => {
     if (!watching || !data) return;
     const controller = new AbortController();
     let pending = false;
-    const timer = window.setInterval(async () => {
+    const check = async () => {
       if (pending || document.hidden) return;
       pending = true;
       try {
@@ -64,14 +67,17 @@ export default function FileViewer({ source, path, name }: Props) {
         }
       } catch (reason) { if (!controller.signal.aborted) setWatchError(messageOf(reason)); }
       finally { pending = false; }
-    }, 2500);
-    return () => { window.clearInterval(timer); controller.abort(); };
+    };
+    const timer = window.setInterval(() => void check(), 2500);
+    const resume = () => { if (!document.hidden) void check(); };
+    document.addEventListener('visibilitychange', resume);
+    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', resume); controller.abort(); };
   }, [watching, source.id, path, data?.revision]);
 
-  function resetFilters() { setQuery(''); setDebouncedQuery(''); setKind('all'); setSession(''); setFrom(''); setTo(''); setOffset(0); }
+  function resetFilters() { setQuery(''); setDebouncedQuery(''); setKind('all'); setTitles(Object.keys(EVENT_LABELS) as EventKind[]); setSession(''); setFrom(''); setTo(''); setOffset(0); }
   function refresh() { setReload((value) => value + 1); }
   function page(next: number) { setOffset(next); scrollRef.current?.scrollTo({ top: 0 }); }
-  const hasFilters = Boolean(query || kind !== 'all' || session || from || to);
+  const hasFilters = Boolean(titles.length !== 7 || query || kind !== 'all' || session || from || to);
   const timeLabel = timezone === 'utc' ? 'UTC' : Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   return <section className="file-view" aria-labelledby="file-title">
@@ -86,9 +92,10 @@ export default function FileViewer({ source, path, name }: Props) {
     <div className="filter-panel">
       <div className="primary-filters">
         <div className="search-control"><label className="sr-only" htmlFor="content-search">선택한 파일에서 검색</label><Search size={17} /><input id="content-search" type="search" placeholder="이 파일에서 요청, 도구, 내용 검색" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
-        <label className="select-field"><span className="sr-only">이벤트 종류</span><select aria-label="이벤트 종류" value={kind} onChange={(event) => { setKind(event.target.value); setOffset(0); }}><option value="all">전체 이벤트</option><option value="user">사용자 요청</option><option value="assistant">Claude 응답</option><option value="tools">도구 호출·결과</option><option value="error">오류</option><option value="thinking">생각 기록</option><option value="system">시스템</option><option value="unknown">미지원 기록</option></select></label>
+        <label className="select-field"><span className="sr-only">오류 필터</span><select aria-label="오류 필터" value={kind} onChange={(event) => { setKind(event.target.value); setOffset(0); }}><option value="all">전체 상태</option><option value="error">오류만</option></select></label>
         <label className="select-field order-control"><ArrowDownUp size={15} /><span className="sr-only">시간 정렬</span><select aria-label="시간 정렬" value={order} onChange={(event) => { setOrder(event.target.value); setOffset(0); }}><option value="asc">과거 → 최신</option><option value="desc">최신 → 과거</option></select></label>
       </div>
+      <fieldset className="title-filters"><legend>기록 제목 <span className="filter-hint">여러 개 선택 가능</span></legend><button type="button" className="title-filter" aria-pressed={titles.length === 7} onClick={() => { setTitles(Object.keys(EVENT_LABELS) as EventKind[]); setOffset(0); }}>전체</button><button type="button" className="title-filter" onClick={() => { setTitles([]); setOffset(0); }}>선택 해제</button>{(Object.keys(EVENT_LABELS) as EventKind[]).map(title => <button type="button" key={title} className="title-filter" aria-pressed={titles.includes(title)} onClick={() => { setTitles(old => old.includes(title) ? old.filter(value => value !== title) : [...old, title]); setOffset(0); }}>{EVENT_LABELS[title]}<span>{data?.counts[title] ?? 0}</span></button>)}</fieldset>
       <div className="secondary-filters"><div className="date-range"><label>시작일<input type="date" value={from} onChange={(event) => { setFrom(event.target.value); setOffset(0); }} /></label><span aria-hidden="true">–</span><label>종료일<input type="date" value={to} onChange={(event) => { setTo(event.target.value); setOffset(0); }} /></label></div>
         <select className="timezone-select" aria-label="표시 시간대" value={timezone} onChange={(event) => { setTimezone(event.target.value); setOffset(0); }}><option value="local">내 시간대</option><option value="utc">UTC</option></select>
         {data && data.sessionIds.length > 1 && <select className="session-select" aria-label="세션 필터" value={session} onChange={(event) => { setSession(event.target.value); setOffset(0); }}><option value="">모든 세션</option>{data.sessionIds.map((id) => <option key={id} value={id}>{id}</option>)}</select>}
