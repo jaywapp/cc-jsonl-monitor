@@ -1,3 +1,4 @@
+import { EVENT_LABELS } from '../shared/event-labels';
 import { useState } from 'react';
 import { Bot, UserRound, Terminal, CornerDownRight, Settings2, FileQuestion, Brain, ChevronDown, ChevronRight, Link2, AlertCircle } from 'lucide-react';
 import type { RawRecord, Source, TranscriptEvent } from '../shared/types';
@@ -42,7 +43,7 @@ export default function EventCard({ event, source, path, revision, timezone, mas
   return <article className={`event-card event-${event.kind} ${event.isError ? 'has-error' : ''}`} id={`event-${event.id}`}>
     <div className="event-avatar"><Icon size={17} strokeWidth={1.7} /></div>
     <div className="event-content">
-      <header className="event-header"><strong>{kind.label}</strong>{event.toolName && <span className="tool-label">{event.toolName}</span>}
+      <header className="event-header"><strong>{EVENT_LABELS[event.kind]}</strong>{event.toolName && <span className="tool-label">{event.toolName}</span>}
         {event.isError && <span className="error-label"><AlertCircle size={12} />오류</span>}
         <time dateTime={event.timestamp || undefined} title={event.timestamp || '원문에 유효한 시각이 없습니다.'}>{formatTime(event.timestamp, timezone)}</time>
       </header>

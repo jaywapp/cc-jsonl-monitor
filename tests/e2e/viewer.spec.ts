@@ -46,10 +46,10 @@ test('opens directory tree and selected JSONL on the right without executing log
 test('filters, searches, sorts, and fetches original lines', async ({ page }) => {
   await openPath(page, transcript);
   await expect(page.locator('.event-card')).toHaveCount(4);
-  await page.getByLabel('이벤트 종류', { exact: true }).selectOption('error');
+  await page.getByLabel('오류 필터', { exact: true }).selectOption('error');
   await expect(page.locator('.event-card')).toHaveCount(1);
   await expect(page.locator('.event-body')).toContainText('retry needed');
-  await page.getByLabel('이벤트 종류', { exact: true }).selectOption('all');
+  await page.getByLabel('오류 필터', { exact: true }).selectOption('all');
   await page.getByLabel('선택한 파일에서 검색').fill('no-match-123');
   await expect(page.getByRole('heading', { name: '조건에 맞는 기록이 없습니다' })).toBeVisible();
   await page.getByRole('button', { name: '검색·필터 초기화', exact: true }).click();

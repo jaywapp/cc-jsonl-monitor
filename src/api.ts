@@ -1,4 +1,6 @@
+import { isExtension, browserApi } from './browser/client';
 export async function api<T>(url: string, options: RequestInit = {}): Promise<T> {
+  if (isExtension) return browserApi<T>(url, options.signal ?? undefined);
   const response = await fetch(url, {
     ...options,
     headers: { 'X-Viewer-Request': '1', ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers },
@@ -11,7 +13,7 @@ export async function api<T>(url: string, options: RequestInit = {}): Promise<T>
 
 export function endpoint(name: string, values: Record<string, string | number | undefined>): string {
   const query = new URLSearchParams();
-  Object.entries(values).forEach(([key, value]) => { if (value !== undefined && value !== '') query.set(key, String(value)); });
+  Object.entries(values).forEach(([key, value]) => { if (value !== undefined && (value !== '' || key === 'titles')) query.set(key, String(value)); });
   return `/api/${name}?${query}`;
 }
 

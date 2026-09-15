@@ -1,6 +1,6 @@
 {
   "name": "cc-jsonl-monitor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Local Claude Code JSONL file-tree viewer",
   "type": "module",
@@ -13,7 +13,10 @@
     "start": "node dist/server/index.js",
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "build:extension": "tsc --noEmit -p tsconfig.json && vite build --config vite.extension.config.ts --mode extension",
+    "package:extension": "npm run build:extension && powershell -NoProfile -File scripts/package-extension.ps1",
+    "test:extension": "playwright test --config playwright.extension.config.ts"
   },
   "dependencies": {
     "lucide-react": "^1.46.0",
