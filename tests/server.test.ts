@@ -71,7 +71,7 @@ test('duplicate tool calls remain ambiguous and malformed metadata is ignored sa
   assert.equal(parsed.events[3].sessionId, null);
   assert.equal(parsed.events[3].cwd, null);
   assert.equal(parsed.events[4].kind, 'unknown');
-  assert.match(parsed.events[4].text, /unfamiliar/);
+  assert.ok(parsed.events[4].details?.some(field => field.label.includes('unfamiliar')));
 });
 
 test('large line fails explicitly and long previews are marked', async () => {

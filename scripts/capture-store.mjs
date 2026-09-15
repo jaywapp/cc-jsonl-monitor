@@ -64,7 +64,7 @@ try {
   await promotion.screenshot({ path: path.join(output, 'promo-440x280.png') });
   await copyFile('extension/icons/128.png', path.join(output, 'icon-128.png'));
   await writeFile(path.join(output, 'assets.json'), JSON.stringify({
-    extensionVersion: '0.2.0', screenshotSize: [1280,800], promotionSize: [440,280],
+    extensionVersion: '0.3.0', screenshotSize: [1280,800], promotionSize: [440,280],
     source: 'Packaged extension with synthetic samples only; native chooser replaced for capture.',
     screenshots: ['01-dark-tree.png','02-light-tree.png','03-title-filters.png'],
     promotion: 'promo-440x280.png', icon: 'icon-128.png',

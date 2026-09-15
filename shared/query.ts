@@ -25,7 +25,7 @@ export function queryFile(snapshot: { actual: string; revision: string; size: nu
     if (titles && !titles.includes(event.kind)) return false;
     if (kind === 'error' ? !event.isError : kind === 'tools' ? event.kind !== 'tool_use' && event.kind !== 'tool_result' : kind !== 'all' && kind !== event.kind) return false;
     if (session && event.sessionId !== session) return false;
-    if (query && ![event.text, event.toolName, event.toolUseId, event.sessionId, event.cwd].some(value => value?.toLocaleLowerCase().includes(query))) return false;
+    if (query && ![event.text, event.title, ...(event.details ?? []).flatMap(field => [field.label, field.value]), event.toolName, event.toolUseId, event.sessionId, event.cwd].some(value => value?.toLocaleLowerCase().includes(query))) return false;
     if (from !== null || to !== null) {
       if (!event.timestamp) return false;
       const time = Date.parse(event.timestamp);

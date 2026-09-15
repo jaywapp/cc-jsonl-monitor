@@ -143,12 +143,7 @@ code, pre { font-family: Consolas, "SFMono-Regular", monospace; }
 .expand-content { margin-block: 5px; }
 .event-note { color: var(--muted); font-size: 11px; margin-top: 6px; margin-bottom: 0; }
 .event-bottom { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 11px; color: var(--muted); }
-.raw-toggle { border: 0; background: transparent; padding: 2px 0; font-size: 11px; color: var(--muted); }
-.raw-toggle:hover { color: var(--accent); }
 .event-session { font-family: Consolas, monospace; font-size: 10px; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-left: auto; }
-.raw-record { margin-top: 12px; padding: 15px; background: var(--surface-alt); border-radius: 7px; }
-.raw-record p { font-size: 12px; color: var(--muted); }
-.raw-record pre { font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: 0; max-height: 450px; overflow-y: auto; }
 .update-banner { background: var(--accent-soft); color: var(--accent); padding: 9px 30px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; }
 .update-banner button { background: var(--surface); color: var(--accent); border: 1px solid var(--selected-line); border-radius: 5px; padding: 3px 10px; white-space: nowrap; }
 .diagnostics { background: var(--warning-soft); border: 1px solid var(--warning-line); border-radius: 7px; margin: 18px 30px 0; padding: 10px 14px; font-size: 12px; color: var(--warning); }
@@ -316,3 +311,9 @@ code, pre { font-family: Consolas, "SFMono-Regular", monospace; }
 }
 
 .filter-hint { font-weight: 400; margin-left: 6px; }
+.event-details { margin: 12px 0 4px; font-size: 13px; line-height: 1.7; }
+.event-detail { display: grid; grid-template-columns: minmax(110px, 25%) minmax(0, 1fr); gap: 12px; padding: 7px 0; border-top: 1px solid var(--line-soft); }
+.event-detail dt { color: var(--muted); overflow-wrap: anywhere; }
+.event-detail dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow-y: auto; }
+.record-location { font-size: 11px; }
+@media (max-width: 600px) { .event-detail { grid-template-columns: minmax(0, 1fr); gap: 3px; } }

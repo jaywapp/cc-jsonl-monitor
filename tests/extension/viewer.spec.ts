@@ -1,6 +1,6 @@
 import { test, expect, chromium, type BrowserContext, type Page } from '@playwright/test';
 import path from 'node:path';
-import { mkdtemp, mkdir } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile } from 'node:fs/promises';
 
 let context: BrowserContext;
 let page: Page;
@@ -48,22 +48,22 @@ test('packaged extension connects a folder, transfers handles to its worker and 
   await page.getByRole('treeitem', { name: 'session.jsonl', exact: true }).click();
   await expect(page.locator('.event-card')).toHaveCount(4);
   await expect(page.locator('.event-body img')).toHaveCount(0);
-  await page.locator('.raw-toggle').first().click();
-  await expect(page.locator('.raw-record pre')).toContainText('로그인 흐름');
+  await expect(page.locator('.event-details').first()).toContainText('npm test');
+  await expect(page.locator('.raw-toggle, .raw-record')).toHaveCount(0);
   expect(errors).toEqual([]); expect(network).toEqual([]);
 });
 
 test('title filters select call/result independently, combine titles, and clear all', async () => {
   const titles = page.getByRole('group', { name: /기록 제목/ });
-  for (const name of ['사용자 요청', 'Claude', '생각 기록', '시스템', '미지원 기록']) await titles.getByRole('button', { name: new RegExp(`^${name}`) }).click();
+  for (const name of ['사용자 요청', 'Claude', '생각 기록', '시스템', '기타 기록']) await titles.getByRole('button', { name: new RegExp(`^${name}`) }).click();
   await expect(page.locator('.event-card')).toHaveCount(2);
   await titles.getByRole('button', { name: /^도구 호출/ }).click();
   await expect(page.locator('.event-card')).toHaveCount(1);
   await expect(page.locator('.event-header strong')).toHaveText('도구 결과');
   await titles.getByRole('button', { name: /^도구 결과/ }).click();
   await expect(page.getByRole('heading', { name: '조건에 맞는 기록이 없습니다' })).toBeVisible();
-  await titles.getByRole('button', { name: /^미지원 기록/ }).click();
-  await expect(page.locator('.event-header strong')).toHaveText('미지원 기록');
+  await titles.getByRole('button', { name: /^기타 기록/ }).click();
+  await expect(page.locator('.event-header strong')).toHaveText('기타 기록');
   await titles.getByRole('button', { name: '전체', exact: true }).click();
   await expect(page.locator('.event-card')).toHaveCount(4);
 });
@@ -126,5 +126,58 @@ test('file picker works independently, cancellation keeps selection, forgetting 
     const logs = await (await navigator.storage.getDirectory()).getDirectoryHandle('synthetic-logs');
     return (await (await (await logs.getDirectoryHandle('atlas')).getFileHandle('session.jsonl')).getFile()).size;
   })).toBeGreaterThan(0);
+  expect(errors).toEqual([]); expect(network).toEqual([]);
+});
+
+test('new record patterns are readable, searchable, masked, and responsive in the extension', async () => {
+  const content = await readFile('samples/atlas/record-patterns.jsonl', 'utf8');
+  await page.evaluate(async content => {
+    const root = await navigator.storage.getDirectory();
+    const handle = await root.getFileHandle('record-patterns.jsonl', { create: true });
+    const writer = await handle.createWritable(); await writer.write(content); await writer.close();
+    Object.assign(window, { showOpenFilePicker: async () => [handle] });
+  }, content);
+  await page.getByRole('button', { name: '파일 열기', exact: true }).click();
+  await expect(page.locator('.event-card')).toHaveCount(10);
+  await expect(page.locator('.raw-toggle, .raw-record, .event-card pre')).toHaveCount(0);
+  const titles = page.getByRole('group', { name: /기록 제목/ });
+  await titles.getByRole('button', { name: '선택 해제', exact: true }).click();
+  await titles.getByRole('button', { name: /^기타 기록/ }).click();
+  await expect(page.locator('.event-card')).toHaveCount(1);
+  await page.getByRole('button', { name: /추가 항목 .*개 보기/ }).click();
+  await expect(page.locator('.event-details')).toContainText('중첩된 정보도 읽을 수 있습니다.');
+  await expect(page.locator('.event-details')).toContainText('[가림]');
+  await expect(page.locator('.event-card')).not.toContainText('synthetic-demo-only');
+  await expect(page.locator('.event-card img')).toHaveCount(0);
+  await page.getByLabel('민감 값 가리기').uncheck();
+  await expect(page.locator('.event-details')).toContainText('synthetic-demo-only');
+  await page.getByLabel('민감 값 가리기').check();
+  await page.getByLabel('화면 테마').selectOption('dark');
+  await page.screenshot({ path: '.local/screenshots/readable-dark.png' });
+  await page.getByLabel('화면 테마').selectOption('light');
+  await page.screenshot({ path: '.local/screenshots/readable-light.png' });
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  await page.screenshot({ path: '.local/screenshots/readable-mobile.png', fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.evaluate(() => document.documentElement.style.zoom = '2');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.evaluate(() => document.documentElement.style.zoom = '1');
+  await titles.getByRole('button', { name: '전체', exact: true }).click();
+  await page.getByLabel('선택한 파일에서 검색').fill('콜백');
+  await expect(page.locator('.event-card')).toHaveCount(1);
+  await expect(page.locator('.event-header strong')).toHaveText(['에이전트 진행 상황']);
+  await page.getByLabel('선택한 파일에서 검색').fill('');
+  await titles.getByRole('button', { name: '선택 해제', exact: true }).click();
+  await titles.getByRole('button', { name: /^파일 이력/ }).click();
+  await expect(page.locator('.event-card')).toHaveCount(1);
+  await expect(page.locator('.event-header strong')).toHaveText(['파일 이력']);
+  await expect(page.locator('.event-details')).toContainText('src/auth.ts');
+  await titles.getByRole('button', { name: '전체', exact: true }).click();
+  await page.getByLabel('오류 필터', { exact: true }).selectOption('error');
+  await expect(page.locator('.event-card')).toHaveCount(1);
+  await expect(page.locator('.event-header strong')).toHaveText(['훅 처리 결과']);
   expect(errors).toEqual([]); expect(network).toEqual([]);
 });

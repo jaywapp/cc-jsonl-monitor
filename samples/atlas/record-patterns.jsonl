@@ -1,0 +1,10 @@
+{"type":"progress","sessionId":"patterns-demo","timestamp":"2026-09-15T01:00:00Z","cwd":"D:/demo/atlas","data":{"type":"bash_progress","command":"npm test","output":"인증 테스트 7개 통과","elapsedTimeSeconds":3}}
+{"type":"progress","sessionId":"patterns-demo","timestamp":"2026-09-15T01:00:01Z","data":{"type":"agent_progress","agentId":"reviewer-demo","message":{"message":{"content":[{"type":"text","text":"콜백에서 복귀 경로를 유지하는지 확인했습니다."}]}}}}
+{"type":"summary","sessionId":"patterns-demo","timestamp":"2026-09-15T01:00:02Z","summary":"로그인 이후 원래 화면으로 돌아가는 흐름을 확인했습니다."}
+{"type":"system","subtype":"compact_boundary","sessionId":"patterns-demo","timestamp":"2026-09-15T01:00:03Z","compact_metadata":{"trigger":"auto","pre_tokens":12000}}
+{"type":"file-history-snapshot","sessionId":"patterns-demo","timestamp":"2026-09-15T01:00:04Z","snapshot":{"trackedFileBackups":{"src/auth.ts":{"version":2,"backupTime":"2026-09-15T01:00:04Z"},"src/callback.ts":{"version":1,"backupTime":"2026-09-15T01:00:04Z"}}},"isSnapshotUpdate":true}
+{"type":"queue-operation","sessionId":"patterns-demo","timestamp":"2026-09-15T01:00:05Z","operation":"enqueue","content":"수정한 인증 흐름을 다시 확인해 주세요."}
+{"type":"custom-title","sessionId":"patterns-demo","timestamp":"2026-09-15T01:00:06Z","customTitle":"인증 흐름 개선"}
+{"type":"system","subtype":"hook_response","sessionId":"patterns-demo","timestamp":"2026-09-15T01:00:07Z","hook_name":"after-test","outcome":"error","exit_code":1,"output":"테스트 보고서 저장 폴더를 찾지 못했습니다."}
+{"type":"future-check","sessionId":"patterns-demo","timestamp":"2026-09-15T01:00:08Z","description":"새 형식에서도 확인할 수 있는 점검 결과입니다.","payload":{"status":"completed","checkedFiles":["src/auth.ts","src/callback.ts"],"note":"<img src=x onerror=alert(1)> 같은 내용도 글자로만 표시합니다.","password":"synthetic-demo-only","extra":{"message":"중첩된 정보도 읽을 수 있습니다."}}}
+{"type":"tool_use_summary","sessionId":"patterns-demo","timestamp":"2026-09-15T01:00:09Z","summary":"파일 2개를 읽고 인증 테스트를 실행했습니다."}

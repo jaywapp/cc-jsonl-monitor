@@ -70,7 +70,7 @@ test('browser snapshots invalidate on append, truncate, rewrite and deletion; ra
   assert.equal((await service.file('single', '', new URLSearchParams())).totalEvents, 5);
   await assert.rejects(service.raw('single', '', 1, first.revision), /변경/);
   f.replace(new File([text.replace('hello.txt', 'world.txt')], 'session.jsonl', { lastModified: 12 }));
-  assert.match((await service.file('single', '', new URLSearchParams('titles=tool_use'))).events[0].text, /world.txt/);
+  assert.ok((await service.file('single', '', new URLSearchParams('titles=tool_use'))).events[0].details?.some(field => field.value.includes('world.txt')));
   f.replace(new File([], 'session.jsonl', { lastModified: 13 }));
   assert.equal((await service.file('single', '', new URLSearchParams())).totalEvents, 0);
   f.replace(null); assert.equal((await service.revision('single', '')).exists, false);

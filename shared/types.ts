@@ -1,4 +1,4 @@
-export type EventKind = 'user' | 'assistant' | 'tool_use' | 'tool_result' | 'thinking' | 'system' | 'unknown';
+export type EventKind = 'user' | 'assistant' | 'tool_use' | 'tool_result' | 'thinking' | 'system' | 'progress' | 'summary' | 'file_history' | 'session' | 'unknown';
 
 export interface Source {
   id: string;
@@ -22,6 +22,8 @@ export interface TreeResult {
   warning?: string;
 }
 
+export interface EventDetail { label: string; value: string; sensitive?: boolean; }
+
 export interface TranscriptEvent {
   id: string;
   kind: EventKind;
@@ -31,6 +33,9 @@ export interface TranscriptEvent {
   sessionId: string | null;
   cwd: string | null;
   text: string;
+  title?: string;
+  details?: EventDetail[];
+  partial?: boolean;
   toolName?: string;
   toolUseId?: string;
   linkedEventId?: string;
